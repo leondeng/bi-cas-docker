@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  conn_bi:
+    image: bundle/connect-ci-bi
+    build: bi
+    ports:
+    - "8080:8080"
+    environment:
+    - APPLY_PATCHES=Y

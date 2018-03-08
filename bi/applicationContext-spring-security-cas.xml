@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:pen="http://www.pentaho.com/schema/pentaho-system"
+      xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+http://www.pentaho.com/schema/pentaho-system http://www.pentaho.com/schema/pentaho-system.xsd" default-lazy-init="true">
+
+  <bean id="serviceProperties" class="org.springframework.security.ui.cas.ServiceProperties">
+    <property name="service" value="http://localhost:8080/pentaho/j_spring_cas_security_check" />
+    <property name="sendRenew" value="false" />
+  </bean>
+  <bean id="casProcessingFilter" class="org.springframework.security.ui.cas.CasProcessingFilter">
+    <property name="authenticationManager" ref="authenticationManager" />
+    <property name="authenticationFailureUrl" value="http://localhost:7700/signin" />
+    <property name="defaultTargetUrl" value="/" />
+    <property name="filterProcessesUrl" value="/j_spring_cas_security_check" />
+  </bean>
+  <bean id="casProcessingFilterEntryPoint" class="org.springframework.security.ui.cas.CasProcessingFilterEntryPoint">
+    <property name="loginUrl" value="http://conn_api/cas/login"/>
+    <property name="serviceProperties" ref="serviceProperties" />
+  </bean>
+  <bean id="casAuthenticationProvider" class="org.springframework.security.providers.cas.CasAuthenticationProvider">
+    <property name="userDetailsService">
+      <pen:bean class="org.springframework.security.userdetails.UserDetailsService"/>
+    </property>
+    <property name="serviceProperties" ref="serviceProperties"/>
+      <property name="ticketValidator">
+        <bean class="org.jasig.cas.client.validation.Cas20ServiceTicketValidator">
+          <constructor-arg index="0" value="http://conn_api/cas/serviceValidate" />
+        </bean>
+      </property>
+      <property name="key" value="an_id_for_this_auth_provider_only"/>
+      <pen:publish as-type="org.springframework.security.providers.AuthenticationProvider">
+        <pen:attributes>
+          <pen:attr key="providerName" value="cas"/>
+        </pen:attributes>
+      </pen:publish>
+  </bean>
+  <bean id="filterChainProxy" class="org.springframework.security.util.FilterChainProxy">
+    <property name="filterInvocationDefinitionSource">
+      <value>
+        <![CDATA[CONVERT_URL_TO_LOWERCASE_BEFORE_COMPARISON
+PATTERN_TYPE_APACHE_ANT
+/webservices/**=securityContextHolderAwareRequestFilterForWS,httpSessionPentahoSessionContextIntegrationFilter,httpSessionContextIntegrationFilter,
+casProcessingFilter,basicProcessingFilter,anonymousProcessingFilter,exceptionTranslationFilterForWS,
+filterInvocationInterceptorForWS
+/api/**=securityContextHolderAwareRequestFilterForWS,httpSessionPentahoSessionContextIntegrationFilter,httpSessionContextIntegrationFilter,
+casProcessingFilter,basicProcessingFilter,anonymousProcessingFilter,exceptionTranslationFilterForWS,
+filterInvocationInterceptorForWS
+/plugin/**=securityContextHolderAwareRequestFilterForWS,httpSessionPentahoSessionContextIntegrationFilter,httpSessionContextIntegrationFilter,
+casProcessingFilter,basicProcessingFilter,anonymousProcessingFilter,exceptionTranslationFilterForWS,
+filterInvocationInterceptorForWS
+/**=securityContextHolderAwareRequestFilter,httpSessionPentahoSessionContextIntegrationFilter,httpSessionContextIntegrationFilter,
+httpSessionReuseDetectionFilter,logoutFilter,casProcessingFilter,authenticationProcessingFilter,
+basicProcessingFilter,requestParameterProcessingFilter,anonymousProcessingFilter,
+exceptionTranslationFilter,filterInvocationInterceptor]]>
+      </value>
+    </property>
+  </bean>
+
+  <bean id="authenticationManager" class="org.springframework.security.providers.ProviderManager">
+    <property name="providers">
+      <list>
+        <ref bean="casAuthenticationProvider" />
+        <ref bean="anonymousAuthenticationProvider" />
+      </list>
+    </property>
+  </bean>
+  <bean id="exceptionTranslationFilter" class="org.springframework.security.ui.ExceptionTranslationFilter">
+    <property name="authenticationEntryPoint">
+      <ref local="casProcessingFilterEntryPoint" />
+    </property>
+    <property name="accessDeniedHandler">
+      <bean class="org.springframework.security.ui.AccessDeniedHandlerImpl" />
+    </property>
+  </bean>
+  <bean id="exceptionTranslationFilterForWS" class="org.springframework.security.ui.ExceptionTranslationFilter">
+    <property name="authenticationEntryPoint">
+      <ref local="casProcessingFilterEntryPoint" />
+    </property>
+    <property name="accessDeniedHandler">
+      <bean class="org.springframework.security.ui.AccessDeniedHandlerImpl" />
+    </property>
+  </bean>
+  <bean id="logoutFilter" class="org.springframework.security.ui.logout.LogoutFilter">
+    <constructor-arg value="http://conn_api/cas/logout?url=http://localhost:8080/pentaho/Home" />
+    <!-- URL redirected to after logout -->
+    <constructor-arg>
+      <list>
+        <bean class="org.pentaho.platform.web.http.security.PentahoLogoutHandler" />
+        <bean class="org.springframework.security.ui.logout.SecurityContextLogoutHandler" />
+      </list>
+    </constructor-arg>
+    <property name="filterProcessesUrl" value="/Logout" />
+  </bean>
+</beans>
